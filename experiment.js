@@ -45,7 +45,7 @@ const timeline = [];
 //Stimulus time parameters
 let durations = {
     prime_duration: debug ? 1 : 133,
-    blank_duration: debug ? 1 : 33,
+    blank_duration: debug ? 1 : 1000,
     probe_stim_duration: debug ? 1 : 133,
     probe_trial_duration: debug ? 1 : 1000
 }
@@ -130,7 +130,7 @@ const probe = {
         //console.log('Key pressed:', data.response);
         data.trial_money = money;
        data.correct = data.response?.toLowerCase() === data.correct_response?.toLowerCase(); //upper case responses are deemed correct as well
-        if(!in_practice) { //monetary changes are only applied in the main experiment, not in practice, though it would change the monetary outcome 
+        if(!in_practice) { //monetary changes are only applied in the main experiment, not in practice, though it wouldn't change the monetary outcome 
         if (data.color === "red") {
         money -= 47;
     }
@@ -691,10 +691,29 @@ function make_block_intermission(block_index) {
   };
 }
 
+//Accuracy check after each block: below 60% -> end of experiment
+const accuracy_exit = (block_stimuli) => ({
+    timeline: [{
+        type: jsPsychHtmlButtonResponse,
+        stimulus: `<p style="text-align: justify; max-width: 800px; margin: auto; font-size: 24px; font-weight: bold"> ${lang === "eng" ? "The experiment is over. Thank you for participating in the study!" : "A kísérlet véget ért. Köszönjük, hogy részt vettél a vizsgálatban!"}</p>`,
+        choices: [experiment_text[lang]["finish"]],
+        data: { task: 'accuracy_exclusion' },
+        on_finish: () => jsPsych.abortExperiment()
+    }],
+    conditional_function: () => {
+        if (debug === 1) return true; 
+        const probe_trials = jsPsych.data.get().filter({task: 'probe'}).last(block_stimuli.length);
+        const accuracy = probe_trials.filter({correct: true}).count() / probe_trials.count();
+        console.log('Block acc:', accuracy);
+        jsPsych.data.addDataToLastTrial({block_accuracy: accuracy});
+        return accuracy < 0.6;
+    }
+});
 //Full experiment timeline
 const full_experiment = [];
 experimental_blocks.forEach((block, index) => {
     full_experiment.push(block);
+    full_experiment.push(accuracy_exit(randomized_stimuli_per_participant[index]));
     if (shuffled_mani_list[index]) {
      full_experiment.push({
         timeline: [
