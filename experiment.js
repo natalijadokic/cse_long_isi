@@ -254,22 +254,15 @@ const data_handling_trial = {
 
 timeline.push(data_handling_trial);
 
-//Demographic information
+//Demographic information 
 const age_neptun = {
-  type: jsPsychSurveyText,
-  questions: [
-    {
-        prompt: experiment_text[lang]["age"],
-        name: "age",
-        input_type: "number",
-        required: true
-    },
-    {
-        prompt: experiment_text[lang]["neptun"],
-        name: "neptun",
-        required: true
-    }
-  ],
+  type: jsPsychSurveyHtmlForm,
+  html: ` 
+    <p>${experiment_text[lang]["age"]}</p>
+    <p><input type="number" name="age" min="18" max="100" required></p>
+    <p>${experiment_text[lang]["neptun"]}</p>
+    <p><input type="text" name="neptun" minlength="6" maxlength="6" required></p> 
+  `,
   button_label: experiment_text[lang]["button_press"],
 };
  
