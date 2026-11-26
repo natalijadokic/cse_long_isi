@@ -6,14 +6,21 @@
 let queryString = window.location.search;
 let urlParams = new URLSearchParams(queryString);
 
+var acc_excluded = false; //flagging accuracy exclusion
 
 //Initialize jsPsych
     const jsPsych = initJsPsych({
         on_finish: () => {
-            try {jatos.endStudyAndRedirect(
-                    "link here", 
-            jsPsych.data.get().csv()
-                );
+            try {
+                if (acc_excluded) {
+                    jatos.submitResultData(jsPsych.data.get().csv())
+                        .then(() => jatos.endStudyWithoutRedirect());
+                } else {
+                    jatos.endStudyAndRedirect(
+                        "link here", 
+                        jsPsych.data.get().csv()
+                    );
+                }
 	    }catch{
         const csv = jsPsych.data.get().csv();
         const blob = new Blob([csv], { type: 'text/csv' });
@@ -22,9 +29,10 @@ let urlParams = new URLSearchParams(queryString);
         link.href = url;
         link.download = `data_${Date.now()}.csv`;
         link.click();
-	    }
+	            }
             }
-    });
+        }
+    );
 function main_experiment(debug, lang, experiment_number, experiment_text){
 const running_jatos = (typeof jatos !== `undefined`)
 var experiment_text = experiment_text
@@ -693,20 +701,21 @@ function make_block_intermission(block_index) {
 
 //Accuracy check after each block: below 60% -> end of experiment
 const accuracy_exit = (block_stimuli) => ({
-    timeline: [{
-        type: jsPsychHtmlButtonResponse,
-        stimulus: `<p style="text-align: justify; max-width: 800px; margin: auto; font-size: 24px; font-weight: bold"> ${lang === "eng" ? "The experiment is over. Thank you for participating in the study!" : "A kísérlet véget ért. Köszönjük, hogy részt vettél a vizsgálatban!"}</p>`,
-        choices: [experiment_text[lang]["finish"]],
-        data: { task: 'accuracy_exclusion' },
-        on_finish: () => jsPsych.abortExperiment()
-    }],
-    conditional_function: () => {
-        if (debug === 1) return true; 
+    type: jsPsychHtmlKeyboardResponse,
+    stimulus: '',
+    choices: 'NO_KEYS',
+    trial_duration: 0,
+    data: { task: 'accuracy_check' },
+    on_finish: function(data) {
         const probe_trials = jsPsych.data.get().filter({task: 'probe'}).last(block_stimuli.length);
         const accuracy = probe_trials.filter({correct: true}).count() / probe_trials.count();
-        console.log('Block acc:', accuracy);
-        jsPsych.data.addDataToLastTrial({block_accuracy: accuracy});
-        return accuracy < 0.6;
+        data.block_accuracy = accuracy;
+        console.log('Block accuracy:', accuracy);
+        if (debug !== 1 && accuracy < 0.6) {
+            acc_excluded = true;
+            jsPsych.abortExperiment(`<p style="text-align: justify; max-width: 800px; margin: auto; font-size: 24px; font-weight: bold">
+                ${lang === "eng" ? "The experiment is over. Thank you for participating in the study!" : "A kísérlet véget ért. Köszönjük, hogy részt vettél a vizsgálatban!"}</p>`);
+        }
     }
 });
 //Full experiment timeline
